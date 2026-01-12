@@ -5,11 +5,16 @@ import com.kd.eventmanagement.backend.dto.respone.TicketIssuedResponse;
 import com.kd.eventmanagement.backend.entity.Attendee;
 import com.kd.eventmanagement.backend.entity.Event;
 import com.kd.eventmanagement.backend.entity.Ticket;
+import com.kd.eventmanagement.backend.common.enums.ErrorCode;
+import com.kd.eventmanagement.backend.common.exception.BusinessException;
+import com.kd.eventmanagement.backend.common.exception.ResourceNotFoundException;
+import com.kd.eventmanagement.backend.common.mapper.TicketMapper;
 import com.kd.eventmanagement.backend.repository.AttendeeRepository;
 import com.kd.eventmanagement.backend.repository.EventRepository;
 import com.kd.eventmanagement.backend.repository.TicketRepository;
-import com.kd.eventmanagement.backend.util.QrSigner;
+import com.kd.eventmanagement.backend.common.util.QrSigner;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RegistrationServiceImpl implements com.kd.eventmanagement.backend.service.impl.RegistrationService {
@@ -24,6 +30,7 @@ public class RegistrationServiceImpl implements com.kd.eventmanagement.backend.s
     private final EventRepository eventRepository;
     private final AttendeeRepository attendeeRepository;
     private final TicketRepository ticketRepository;
+    private final TicketMapper ticketMapper;
 
     @Value("${app.qr.secret:change-me}")
     private String qrSecret;
@@ -31,11 +38,17 @@ public class RegistrationServiceImpl implements com.kd.eventmanagement.backend.s
     @Override
     @Transactional
     public TicketIssuedResponse register(RegisterAttendeeRequest req) {
+        log.info("Registering attendee {} for event {}", req.fullName(), req.eventCode());
+        
         Event event = eventRepository.findByCode(req.eventCode())
-                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + req.eventCode()));
+                .orElseThrow(() -> {
+                    log.error("Event not found: {}", req.eventCode());
+                    return new ResourceNotFoundException(ErrorCode.EVENT_NOT_FOUND, "Event not found: " + req.eventCode());
+                });
 
         if (event.getStatus() == Event.EventStatus.CLOSED) {
-            throw new IllegalArgumentException("Event is closed");
+            log.warn("Attempt to register for closed event: {}", req.eventCode());
+            throw new BusinessException(ErrorCode.EVENT_CLOSED, "Event is closed");
         }
 
         // prevent duplicate registration per Telegram user per event
@@ -63,13 +76,7 @@ public class RegistrationServiceImpl implements com.kd.eventmanagement.backend.s
 
         String qrPayload = buildSignedQrPayload(ticket.getId(), event.getCode(), ticket.getIssuedAt());
 
-        return new TicketIssuedResponse(
-                ticket.getId(),
-                ticket.getTicketNo(),
-                event.getCode(),
-                qrPayload,
-                ticket.getIssuedAt()
-        );
+        return ticketMapper.toIssuedResponse(ticket, qrPayload);
     }
 
     private String generateTicketNo() {

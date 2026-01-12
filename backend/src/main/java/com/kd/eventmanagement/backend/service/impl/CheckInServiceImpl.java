@@ -2,11 +2,15 @@ package com.kd.eventmanagement.backend.service.impl;
 
 import com.kd.eventmanagement.backend.dto.respone.CheckInResponse;
 import com.kd.eventmanagement.backend.entity.Ticket;
+import com.kd.eventmanagement.backend.common.enums.ErrorCode;
+import com.kd.eventmanagement.backend.common.exception.BusinessException;
+import com.kd.eventmanagement.backend.common.mapper.CheckInMapper;
 import com.kd.eventmanagement.backend.repository.EventRepository;
 import com.kd.eventmanagement.backend.repository.TicketRepository;
 import com.kd.eventmanagement.backend.service.CheckInService;
-import com.kd.eventmanagement.backend.util.QrSigner;
+import com.kd.eventmanagement.backend.common.util.QrSigner;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,12 +22,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CheckInServiceImpl implements CheckInService {
 
     private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
+    private final CheckInMapper checkInMapper;
 
     @Value("${app.qr.secret:change-me}")
     private String qrSecret;
@@ -31,70 +37,78 @@ public class CheckInServiceImpl implements CheckInService {
     @Override
     @Transactional
     public CheckInResponse checkIn(String qrPayload, String staffUser) {
+        log.info("Check-in attempt by staff: {}", staffUser);
+        log.debug("QR payload: {}", qrPayload);
         Map<String, String> q = parseQuery(qrPayload);
-
         String ticketIdStr = q.get("t");
         String eventCode = q.get("e");
         String ts = q.get("ts");
         String sig = q.get("sig");
 
         if (ticketIdStr == null || eventCode == null || ts == null || sig == null) {
-            return new CheckInResponse(false, "Invalid QR payload", null, null, null);
+            log.error("Invalid QR payload: missing required parameters");
+            return checkInMapper.toErrorResponse("Invalid QR payload", null, null, null);
         }
 
         String base = "t=" + ticketIdStr + "&e=" + eventCode + "&ts=" + ts;
         String expectedSig = QrSigner.hmacSha256Hex(qrSecret, base);
         if (!expectedSig.equalsIgnoreCase(sig)) {
-            return new CheckInResponse(false, "Invalid signature (fake QR)", null, null, null);
+            log.warn("Invalid QR signature for ticket: {}", ticketIdStr);
+            throw new BusinessException(ErrorCode.INVALID_QR_CODE, "Invalid signature (fake QR)");
         }
 
         // Ensure event exists
         var event = eventRepository.findByCode(eventCode)
                 .orElse(null);
         if (event == null) {
-            return new CheckInResponse(false, "Event not found", null, null, null);
+            log.error("Event not found: {}", eventCode);
+            return checkInMapper.toErrorResponse("Event not found", null, null, null);
         }
 
         UUID ticketId;
         try {
             ticketId = UUID.fromString(ticketIdStr);
         } catch (Exception ex) {
-            return new CheckInResponse(false, "Invalid ticket id", null, null, null);
+            log.error("Invalid ticket UUID format: {}", ticketIdStr);
+            return checkInMapper.toErrorResponse("Invalid ticket id", null, null, null);
         }
 
         Ticket ticket = ticketRepository.findById(ticketId).orElse(null);
         if (ticket == null) {
-            return new CheckInResponse(false, "Ticket not found", null, null, null);
+            log.error("Ticket not found: {}", ticketId);
+            return checkInMapper.toErrorResponse("Ticket not found", null, null, null);
         }
 
         if (!ticket.getEvent().getCode().equals(eventCode)) {
-            return new CheckInResponse(false, "Ticket does not belong to this event", null, null, null);
+            log.warn("Ticket {} does not belong to event {}", ticketId, eventCode);
+            return checkInMapper.toErrorResponse("Ticket does not belong to this event", null, null, null);
         }
 
         if (ticket.getStatus() == Ticket.TicketStatus.REVOKED) {
-            return new CheckInResponse(false, "Ticket revoked", null, ticket.getTicketNo(), null);
+            log.warn("Attempted to check-in revoked ticket: {}", ticket.getTicketNo());
+            return checkInMapper.toErrorResponse("Ticket revoked", null, ticket.getTicketNo(), null);
         }
 
         if (ticket.getCheckedInAt() != null) {
-            return new CheckInResponse(false, "Already checked-in", ticket.getAttendee().getFullName(),
+            log.warn("Duplicate check-in attempt for ticket: {}", ticket.getTicketNo());
+            return checkInMapper.toErrorResponse("Already checked-in", ticket.getAttendee().getFullName(),
                     ticket.getTicketNo(), ticket.getCheckedInAt());
         }
 
         // Optional: check time window
         OffsetDateTime now = OffsetDateTime.now();
         if (now.isBefore(event.getStartAt()) || now.isAfter(event.getEndAt())) {
-            return new CheckInResponse(false, "Event not active (outside time window)", ticket.getAttendee().getFullName(),
-                    ticket.getTicketNo(), null);
+            log.warn("Check-in attempt outside event time window for event: {}", eventCode);
+            return checkInMapper.toErrorResponse("Event not active (outside time window)", 
+                    ticket.getAttendee().getFullName(), ticket.getTicketNo(), null);
         }
 
         ticket.setCheckedInAt(now);
         ticket.setCheckedInBy(staffUser);
         ticketRepository.save(ticket);
 
-        return new CheckInResponse(true, "Checked-in successfully",
-                ticket.getAttendee().getFullName(),
-                ticket.getTicketNo(),
-                ticket.getCheckedInAt());
+        log.info("Check-in successful for ticket: {} by staff: {}", ticket.getTicketNo(), staffUser);
+        return checkInMapper.toSuccessResponse(ticket);
     }
 
     private static Map<String, String> parseQuery(String payload) {

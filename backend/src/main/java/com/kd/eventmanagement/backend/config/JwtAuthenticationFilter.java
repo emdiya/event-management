@@ -3,7 +3,7 @@ package com.kd.eventmanagement.backend.config;
 import com.kd.eventmanagement.backend.entity.Role;
 import com.kd.eventmanagement.backend.entity.User;
 import com.kd.eventmanagement.backend.repository.UserRepository;
-import com.kd.eventmanagement.backend.util.JwtUtil;
+import com.kd.eventmanagement.backend.common.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

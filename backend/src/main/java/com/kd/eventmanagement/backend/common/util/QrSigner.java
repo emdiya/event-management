@@ -1,4 +1,4 @@
-package com.kd.eventmanagement.backend.util;
+package com.kd.eventmanagement.backend.common.util;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;

@@ -4,12 +4,11 @@ import com.kd.eventmanagement.backend.dto.respone.EventResponse;
 import com.kd.eventmanagement.backend.entity.Event;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface AdminService {
     List<EventResponse> getAllEvents();
-    EventResponse updateEventStatus(UUID eventId, Event.EventStatus status);
-    void deleteEvent(UUID eventId);
-    long getAttendeeCount(UUID eventId);
-    long getCheckedInCount(UUID eventId);
+    EventResponse updateEventStatus(String hashId, Event.EventStatus status);
+    void deleteEvent(String hashId);
+    long getAttendeeCount(String hashId);
+    long getCheckedInCount(String hashId);
 }

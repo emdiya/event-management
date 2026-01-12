@@ -1,16 +1,17 @@
 package com.kd.eventmanagement.backend.dto.respone;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.OffsetDateTime;
-import java.util.UUID;
 
 @Data
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class EventResponse {
 
-    private UUID id;
+    private String hashId;
     private String code;
     private String title;
     private String description;
