@@ -1,11 +1,13 @@
 package com.kd.eventmanagement.backend.controller;
 
+import com.kd.eventmanagement.backend.dto.request.CreateEventRequest;
 import com.kd.eventmanagement.backend.dto.request.UpdateEventStatusRequest;
 import com.kd.eventmanagement.backend.dto.respone.EventResponse;
 import com.kd.eventmanagement.backend.dto.respone.EventStatsResponse;
 import com.kd.eventmanagement.backend.common.wrapper.ItemResponse;
 import com.kd.eventmanagement.backend.common.wrapper.PaginationResponse;
 import com.kd.eventmanagement.backend.service.AdminService;
+import com.kd.eventmanagement.backend.service.EventService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -29,8 +31,8 @@ import java.util.List;
 @Tag(name = "Admin", description = "Admin management APIs")
 @SecurityRequirement(name = "bearer-jwt")
 public class AdminController {
-
     private final AdminService adminService;
+    private final EventService eventService;
 
     @GetMapping("/events")
     @Operation(summary = "Get all events", description = "Retrieve all events (Admin only)")
@@ -49,7 +51,7 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/events/{hashId}/status")
+    @PatchMapping("/events/{hashId}/status")
     @Operation(summary = "Update event status", description = "Update the status of an event (Admin only)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Event status updated successfully"),
@@ -109,4 +111,23 @@ public class AdminController {
         ItemResponse<EventStatsResponse> response = ItemResponse.success(stats, "Event statistics retrieved successfully");
         return ResponseEntity.ok(response);
     }
+
+    @PatchMapping("/events/{codeOrHash}")
+    @Operation(summary = "Update event", description = "Update an event by code or hash ID (Admin only)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Event updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Event not found"),
+            @ApiResponse(responseCode = "403", description = "Access denied")
+    })
+    public ResponseEntity<ItemResponse<EventResponse>> updateEvent(
+            @Parameter(description = "Event code or hash ID", required = true) @PathVariable String codeOrHash,
+            @Valid @RequestBody CreateEventRequest request
+    ) {
+        log.info("Admin updating event: {}", codeOrHash);
+        EventResponse eventResponse = eventService.updateEvent(codeOrHash, request);
+        ItemResponse<EventResponse> response = ItemResponse.success(eventResponse, "Event updated successfully");
+        return ResponseEntity.ok(response);
+    }
+
+
 }

@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 public record CreateEventRequest(
         @NotBlank String title,
         String description,
+        String location,
         @NotNull OffsetDateTime startAt,
         @NotNull OffsetDateTime endAt,
         Event.EventStatus status // Optional, defaults to DRAFT if not provided

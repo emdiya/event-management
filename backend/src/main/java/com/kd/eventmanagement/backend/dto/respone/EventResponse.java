@@ -15,6 +15,7 @@ public class EventResponse {
     private String code;
     private String title;
     private String description;
+    private String location;
     private OffsetDateTime startAt;
     private OffsetDateTime endAt;
     private String status;

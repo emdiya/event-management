@@ -9,7 +9,7 @@ RUN chmod +x mvnw && ./mvnw -B dependency:go-offline
 COPY src src
 RUN ./mvnw -B clean package -DskipTests
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jdk
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 

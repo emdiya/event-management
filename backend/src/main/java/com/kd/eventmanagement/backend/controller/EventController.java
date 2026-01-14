@@ -28,7 +28,6 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Events", description = "Event management APIs")
 public class EventController {
     private final EventService eventService;
-
     @GetMapping
     @Operation(summary = "Get all events", description = "Retrieve events with pagination and filtering")
     @ApiResponses(value = {
@@ -50,13 +49,12 @@ public class EventController {
                 .hasNext(eventPage.hasNext())
                 .hasPrevious(eventPage.hasPrevious())
                 .build();
-        
+
         PaginationResponse<EventResponse> response = PaginationResponse.success(
                 eventPage.getContent(),
                 pagination,
                 "Events retrieved successfully"
         );
-        
         return ResponseEntity.ok(response);
     }
 
@@ -87,4 +85,46 @@ public class EventController {
         EventResponse response = eventService.getByCode(code);
         return ResponseEntity.ok(response);
     }
+
+
+    @PatchMapping("/{codeOrHash}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @SecurityRequirement(name = "bearer-jwt")
+    @Operation(summary = "Update event", description = "Update event by code or hashid (Admin/Staff only)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Event updated successfully",
+                    content = @Content(schema = @Schema(implementation = EventResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "Access denied"),
+            @ApiResponse(responseCode = "404", description = "Event not found")
+    })
+    public ResponseEntity<EventResponse> updateEvent(
+            @Parameter(description = "Event code or hashid", required = true)
+            @PathVariable String codeOrHash,
+            @Valid @RequestBody CreateEventRequest request
+    ) {
+        log.info("Updating event: {}", codeOrHash);
+        EventResponse response = eventService.updateEvent(codeOrHash, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{codeOrHash}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @SecurityRequirement(name = "bearer-jwt")
+    @Operation(summary = "Delete event", description = "Delete event by code or hashid (Admin/Staff only)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Event deleted successfully"),
+            @ApiResponse(responseCode = "403", description = "Access denied"),
+            @ApiResponse(responseCode = "404", description = "Event not found")
+    })
+    public ResponseEntity<Void> deleteEvent(
+            @Parameter(description = "Event code or hashid", required = true)
+            @PathVariable String codeOrHash
+    ) {
+        log.warn("Deleting event: {}", codeOrHash);
+        eventService.deleteEvent(codeOrHash);
+        return ResponseEntity.noContent().build();
+    }
+
+
 }

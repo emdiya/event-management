@@ -1,5 +1,4 @@
-package com.kd.eventmanagement.backend.service.impl;
-
+package com.kd.eventmanagement.backend.service;
 
 import com.kd.eventmanagement.backend.dto.request.RegisterAttendeeRequest;
 import com.kd.eventmanagement.backend.dto.respone.TicketIssuedResponse;

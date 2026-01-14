@@ -49,4 +49,11 @@ This system enables administrators to create events, users to register easily vi
 
 ---
 
+## 📚 Documentation
+
+- **[Telegram Bot Integration Guide](TELEGRAM_INTEGRATION.md)** - Complete setup guide for Telegram bot and Web App
+- **[Authentication Guide](AUTH_GUIDE.md)** - API authentication and authorization
+
+---
+
 ### Develop by Diya

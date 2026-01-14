@@ -9,4 +9,7 @@ public interface EventService {
     EventResponse createEvent(CreateEventRequest req);
     EventResponse getByCode(String code);
     Page<EventResponse> getAllEvents(int page, int size, String title, Event.EventStatus status);
+    EventResponse updateEvent(String codeOrHash, CreateEventRequest req);
+    void deleteEvent(String codeOrHash);
+
 }

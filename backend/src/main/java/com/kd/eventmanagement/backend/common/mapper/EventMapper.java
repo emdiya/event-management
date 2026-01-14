@@ -27,6 +27,7 @@ public class EventMapper {
                 event.getCode(),
                 event.getTitle(),
                 event.getDescription(),
+                event.getLocation(),
                 event.getStartAt(),
                 event.getEndAt(),
                 event.getStatus().name()
